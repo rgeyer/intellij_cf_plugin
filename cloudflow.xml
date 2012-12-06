@@ -1,0 +1,327 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="cloudflow" default="all">
+  
+  
+  <property file="cloudflow.properties"/>
+  <!-- Uncomment the following property if no tests compilation is needed -->
+  <!-- 
+  <property name="skip.tests" value="true"/>
+   -->
+  
+  <!-- Compiler options -->
+  
+  <property name="compiler.debug" value="on"/>
+  <property name="compiler.generate.no.warnings" value="off"/>
+  <property name="compiler.args" value=""/>
+  <property name="compiler.max.memory" value="128m"/>
+  <patternset id="ignored.files">
+    <exclude name="**/CVS/**"/>
+    <exclude name="**/SCCS/**"/>
+    <exclude name="**/RCS/**"/>
+    <exclude name="**/rcs/**"/>
+    <exclude name="**/.DS_Store/**"/>
+    <exclude name="**/.svn/**"/>
+    <exclude name="**/.pyc/**"/>
+    <exclude name="**/.pyo/**"/>
+    <exclude name="**/*.pyc/**"/>
+    <exclude name="**/*.pyo/**"/>
+    <exclude name="**/.git/**"/>
+    <exclude name="**/*.hprof/**"/>
+    <exclude name="**/_svn/**"/>
+    <exclude name="**/.hg/**"/>
+    <exclude name="**/*.lib/**"/>
+    <exclude name="**/*~/**"/>
+    <exclude name="**/__pycache__/**"/>
+    <exclude name="**/.bundle/**"/>
+  </patternset>
+  <patternset id="library.patterns">
+    <include name="*.war"/>
+    <include name="*.ear"/>
+    <include name="*.zip"/>
+    <include name="*.swc"/>
+    <include name="*.egg"/>
+    <include name="*.jar"/>
+  </patternset>
+  <patternset id="compiler.resources">
+    <include name="**/?*.properties"/>
+    <include name="**/?*.xml"/>
+    <include name="**/?*.gif"/>
+    <include name="**/?*.png"/>
+    <include name="**/?*.jpeg"/>
+    <include name="**/?*.jpg"/>
+    <include name="**/?*.html"/>
+    <include name="**/?*.dtd"/>
+    <include name="**/?*.tld"/>
+    <include name="**/?*.ftl"/>
+  </patternset>
+  
+  <!-- JDK definitions -->
+  
+  <property name="jdk.bin.idea_iu-107.777" value="${jdk.home.idea_iu-107.777}/../../System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home/bin"/>
+  <path id="jdk.classpath.idea_iu-107.777">
+    <fileset dir="${jdk.home.idea_iu-107.777}">
+      <include name="../../System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home/lib/deploy.jar"/>
+      <include name="../../System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home/lib/dt.jar"/>
+      <include name="../../System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home/lib/javaws.jar"/>
+      <include name="../../System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home/lib/jce.jar"/>
+      <include name="../../System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home/lib/jconsole.jar"/>
+      <include name="../../System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home/lib/management-agent.jar"/>
+      <include name="../../System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home/lib/plugin.jar"/>
+      <include name="../../System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home/lib/sa-jdi.jar"/>
+      <include name="../../System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home/../Classes/alt-rt.jar"/>
+      <include name="../../System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home/../Classes/alt-string.jar"/>
+      <include name="../../System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home/../Classes/charsets.jar"/>
+      <include name="../../System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home/../Classes/classes.jar"/>
+      <include name="../../System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home/../Classes/jsse.jar"/>
+      <include name="../../System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home/../Classes/ui.jar"/>
+      <include name="../../System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home/lib/ext/apple_provider.jar"/>
+      <include name="../../System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home/lib/ext/dnsns.jar"/>
+      <include name="../../System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home/lib/ext/localedata.jar"/>
+      <include name="../../System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home/lib/ext/sunjce_provider.jar"/>
+      <include name="../../System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home/lib/ext/sunpkcs11.jar"/>
+      <include name="lib/alloy.jar"/>
+      <include name="lib/annotations.jar"/>
+      <include name="lib/asm-commons.jar"/>
+      <include name="lib/asm-tree-3.0.jar"/>
+      <include name="lib/asm.jar"/>
+      <include name="lib/automaton.jar"/>
+      <include name="lib/batik.jar"/>
+      <include name="lib/boot.jar"/>
+      <include name="lib/bootstrap.jar"/>
+      <include name="lib/cglib-2.2.jar"/>
+      <include name="lib/commons-codec-1.3.jar"/>
+      <include name="lib/commons-collections.jar"/>
+      <include name="lib/commons-httpclient-3.1-patched.jar"/>
+      <include name="lib/commons-lang-2.4.jar"/>
+      <include name="lib/commons-logging-1.1.1.jar"/>
+      <include name="lib/commons-net-2.0-patched.jar"/>
+      <include name="lib/dtdparser113.jar"/>
+      <include name="lib/extensions.jar"/>
+      <include name="lib/forms_rt.jar"/>
+      <include name="lib/freemarker.jar"/>
+      <include name="lib/groovy-all-1.7.3.jar"/>
+      <include name="lib/guava-r09.jar"/>
+      <include name="lib/icons.jar"/>
+      <include name="lib/idea-jsp-openapi.jar"/>
+      <include name="lib/idea.jar"/>
+      <include name="lib/idea_rt.jar"/>
+      <include name="lib/jasper21_rt.jar"/>
+      <include name="lib/jasper2_rt.jar"/>
+      <include name="lib/javac2.jar"/>
+      <include name="lib/jaxen-1.1.3.jar"/>
+      <include name="lib/jcip-annotations.jar"/>
+      <include name="lib/jdom.jar"/>
+      <include name="lib/jgoodies-forms.jar"/>
+      <include name="lib/jh.jar"/>
+      <include name="lib/jna-utils.jar"/>
+      <include name="lib/jna.jar"/>
+      <include name="lib/jsp-api.jar"/>
+      <include name="lib/jsr173_1.0_api.jar"/>
+      <include name="lib/junit-4.8.jar"/>
+      <include name="lib/junit.jar"/>
+      <include name="lib/log4j.jar"/>
+      <include name="lib/looks-2.2.2.jar"/>
+      <include name="lib/microba.jar"/>
+      <include name="lib/nanoxml-2.2.3.jar"/>
+      <include name="lib/openapi.jar"/>
+      <include name="lib/org.eclipse.jdt.core_3.5.2.v_981_R35x.jar"/>
+      <include name="lib/oromatcher.jar"/>
+      <include name="lib/picocontainer.jar"/>
+      <include name="lib/protobuf-2.3.0.jar"/>
+      <include name="lib/quaqua.jar"/>
+      <include name="lib/resolver.jar"/>
+      <include name="lib/resources.jar"/>
+      <include name="lib/resources_en.jar"/>
+      <include name="lib/serviceMessages.jar"/>
+      <include name="lib/servlet-api.jar"/>
+      <include name="lib/trove4j.jar"/>
+      <include name="lib/trove4j_src.jar"/>
+      <include name="lib/util.jar"/>
+      <include name="lib/velocity.jar"/>
+      <include name="lib/winp-1.14.jar"/>
+      <include name="lib/xbean.jar"/>
+      <include name="lib/xerces.jar"/>
+      <include name="lib/xml-apis.jar"/>
+      <include name="lib/xmlrpc-2.0.jar"/>
+      <include name="lib/xpp3-1.1.4-min.jar"/>
+      <include name="lib/xstream.jar"/>
+      <include name="lib/yjp-controller-api-redist.jar"/>
+      <include name="plugins/JavaEE/lib/javaee-openapi.jar"/>
+      <include name="plugins/JavaEE/lib/jpa-console.jar"/>
+      <include name="plugins/JavaEE/lib/resources_en.jar"/>
+      <include name="plugins/JSF/lib/jsf-support.jar"/>
+      <include name="plugins/JSF/lib/resources_en.jar"/>
+      <include name="plugins/PersistenceSupport/lib/persistence-openapi.jar"/>
+      <include name="plugins/PersistenceSupport/lib/resources_en.jar"/>
+      <include name="plugins/DatabaseSupport/lib/database-openapi.jar"/>
+      <include name="plugins/DatabaseSupport/lib/jdbc-console.jar"/>
+      <include name="plugins/DatabaseSupport/lib/resources_en.jar"/>
+      <include name="plugins/css/lib/css-openapi.jar"/>
+      <include name="plugins/css/lib/resources_en.jar"/>
+    </fileset>
+  </path>
+  
+  <property name="project.jdk.home" value="${jdk.home.idea_iu-107.777}"/>
+  <property name="project.jdk.bin" value="${jdk.bin.idea_iu-107.777}"/>
+  <property name="project.jdk.classpath" value="jdk.classpath.idea_iu-107.777"/>
+  
+  <!-- Modules -->
+  
+  
+  <!-- Module cloudflow -->
+  
+  <dirname property="module.cloudflow.basedir" file="${ant.file}"/>
+  
+  
+  <property name="module.jdk.home.cloudflow" value="${project.jdk.home}"/>
+  <property name="module.jdk.bin.cloudflow" value="${project.jdk.bin}"/>
+  <property name="module.jdk.classpath.cloudflow" value="${project.jdk.classpath}"/>
+  
+  <property name="compiler.args.cloudflow" value="${compiler.args}"/>
+  
+  <property name="cloudflow.output.dir" value="${module.cloudflow.basedir}/out/production/cloudflow"/>
+  <property name="cloudflow.testoutput.dir" value="${module.cloudflow.basedir}/out/test/cloudflow"/>
+
+  <property name="cloudflow.jflex.jarfile" value="${module.cloudflow.basedir}/lib/JFlex.jar"/>
+
+  <property name="cloudflow.lexer.file" value="${module.cloudflow.basedir}/src/me/ryangeyer/jetbrains/plugins/lang/cloudflow/_CloudflowLexer.java" />
+  <property name="cloudflow.lexer.log" value="${module.cloudflow.basedir}/jflex.log" />
+  <property name="cloudflow.lexer.skeleton" value="${module.cloudflow.basedir}/src/me/ryangeyer/jetbrains/plugins/lang/cloudflow/idea-flex.skeleton" />
+  <property name="cloudflow.lexer.source" value="${module.cloudflow.basedir}/src/me/ryangeyer/jetbrains/plugins/lang/cloudflow/Cloudflow.flex" />
+  
+  <path id="cloudflow.module.bootclasspath">
+    <!-- Paths to be included in compilation bootclasspath -->
+  </path>
+  
+  <path id="cloudflow.module.production.classpath">
+    <path refid="${module.jdk.classpath.cloudflow}"/>
+  </path>
+  
+  <path id="cloudflow.runtime.production.module.classpath">
+    <pathelement location="${cloudflow.output.dir}"/>
+  </path>
+  
+  <path id="cloudflow.module.classpath">
+    <path refid="${module.jdk.classpath.cloudflow}"/>
+    <pathelement location="${cloudflow.output.dir}"/>
+  </path>
+  
+  <path id="cloudflow.runtime.module.classpath">
+    <pathelement location="${cloudflow.testoutput.dir}"/>
+    <pathelement location="${cloudflow.output.dir}"/>
+  </path>
+  
+  
+  <patternset id="excluded.from.module.cloudflow">
+    <patternset refid="ignored.files"/>
+  </patternset>
+  
+  <patternset id="excluded.from.compilation.cloudflow">
+    <patternset refid="excluded.from.module.cloudflow"/>
+  </patternset>
+  
+  <path id="cloudflow.module.sourcepath">
+    <dirset dir="${module.cloudflow.basedir}">
+      <include name="src"/>
+      <include name="resources"/>
+    </dirset>
+  </path>
+  
+  <path id="cloudflow.module.test.sourcepath">
+    <dirset dir="${module.cloudflow.basedir}">
+      <include name="test"/>
+    </dirset>
+  </path>
+
+  <target name="generate.cloudflow.lexer" description="Produces cloudflow lexer">
+    <delete file="${cloudflow.lexer.file}"/>
+    <delete file="${cloudflow.lexer.log}"/>
+
+    <java jar="${cloudflow.jflex.jarfile}" output="${cloudflow.lexer.log}" fork="true" maxmemory="512m" >
+      <arg value="-sliceandcharat"/>
+      <arg value="-skel"/>
+      <arg value="${cloudflow.lexer.skeleton}"/>
+      <arg value="${cloudflow.lexer.source}"/>
+    </java>
+  </target>
+  
+  <target name="compile.module.cloudflow" depends="generate.cloudflow.lexer,compile.module.cloudflow.production,compile.module.cloudflow.tests" description="Compile module cloudflow"/>
+  
+  <target name="compile.module.cloudflow.production" description="Compile module cloudflow; production classes">
+    <mkdir dir="${cloudflow.output.dir}"/>
+    <javac destdir="${cloudflow.output.dir}" debug="${compiler.debug}" nowarn="${compiler.generate.no.warnings}" memorymaximumsize="${compiler.max.memory}" fork="true" executable="${module.jdk.bin.cloudflow}/javac">
+      <compilerarg line="${compiler.args.cloudflow}"/>
+      <bootclasspath refid="cloudflow.module.bootclasspath"/>
+      <classpath refid="cloudflow.module.production.classpath"/>
+      <src refid="cloudflow.module.sourcepath"/>
+      <patternset refid="excluded.from.compilation.cloudflow"/>
+    </javac>
+    
+    <copy todir="${cloudflow.output.dir}">
+      <fileset dir="${module.cloudflow.basedir}/src">
+        <patternset refid="compiler.resources"/>
+        <type type="file"/>
+      </fileset>
+      <fileset dir="${module.cloudflow.basedir}/resources">
+        <patternset refid="compiler.resources"/>
+        <type type="file"/>
+      </fileset>
+    </copy>
+  </target>
+  
+  <target name="compile.module.cloudflow.tests" depends="compile.module.cloudflow.production" description="compile module cloudflow; test classes" unless="skip.tests">
+    <mkdir dir="${cloudflow.testoutput.dir}"/>
+    <javac destdir="${cloudflow.testoutput.dir}" debug="${compiler.debug}" nowarn="${compiler.generate.no.warnings}" memorymaximumsize="${compiler.max.memory}" fork="true" executable="${module.jdk.bin.cloudflow}/javac">
+      <compilerarg line="${compiler.args.cloudflow}"/>
+      <bootclasspath refid="cloudflow.module.bootclasspath"/>
+      <classpath refid="cloudflow.module.classpath"/>
+      <src refid="cloudflow.module.test.sourcepath"/>
+      <patternset refid="excluded.from.compilation.cloudflow"/>
+    </javac>
+    
+    <copy todir="${cloudflow.testoutput.dir}">
+      <fileset dir="${module.cloudflow.basedir}/test">
+        <patternset refid="compiler.resources"/>
+        <type type="file"/>
+      </fileset>
+    </copy>
+  </target>
+  
+  <target name="clean.module.cloudflow" description="cleanup module">
+    <delete dir="${cloudflow.output.dir}"/>
+    <delete dir="${cloudflow.testoutput.dir}"/>
+  </target>
+  
+  <property name="cloudflow.plugin.path.jar" value="${module.cloudflow.basedir}/cloudflow.jar"/>
+  
+  <!-- Build archive for plugin 'cloudflow' -->
+  <target name="plugin.build.jar.cloudflow" depends="compile.module.cloudflow" description="Build plugin archive for module &#39;cloudflow&#39;">
+    <jar destfile="${cloudflow.plugin.path.jar}" duplicate="preserve">
+      <zipfileset dir="${module.cloudflow.basedir}/out/production/cloudflow"/>
+      <zipfileset file="${module.cloudflow.basedir}/META-INF/plugin.xml" prefix="META-INF"/>
+      <manifest>
+        <attribute name="Created-By" value="IntelliJ IDEA"/>
+        <attribute name="Manifest-Version" value="1.0"/>
+      </manifest>
+    </jar>
+  </target>
+
+  <property name="cloudflow.plugin.path.zip" value="${module.cloudflow.basedir}/cloudflow.zip"/>
+
+  <target name="plugin.build.zip.cloudflow" depends="plugin.build.jar.cloudflow" description="Builds plugin zip file for distribution">
+    <delete file="${cloudflow.plugin.path.zip}" />
+    <zip destfile="${cloudflow.plugin.path.zip}">
+      <zipfileset dir="${module.cloudflow.basedir}" includes="cloudflow.jar" prefix="cloudflow/lib" />
+    </zip>
+  </target>
+  
+  <target name="init" description="Build initialization">
+    <!-- Perform any build initialization in this target -->
+  </target>
+  
+  <target name="clean" depends="clean.module.cloudflow" description="cleanup all"/>
+  
+  <target name="build.modules" depends="init, clean, plugin.build.jar.cloudflow" description="build all modules"/>
+  
+  <target name="all" depends="build.modules" description="build all"/>
+</project>

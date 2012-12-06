@@ -1,0 +1,364 @@
+# Identifies all servers in a deployment in one or more datacenters or "zones"
+# and clones them into a new datacenter.  Handles DB master/slave relationships appropriately
+#
+# Inputs:
+#   @deployment - The deployment to operate on
+#   @old_dcs    - One or many datacenters which can no longer be used
+#   @new_dc     - The datacenter to create new servers in, which will replace those in the impacted datacenter(s))
+#
+define pcr(@deployment, @old_dcs, @new_dc)
+
+  log_title("Google PCR Automation")
+
+  # Create a tag to be associated with everything this cloudflow creates
+  # This'll make it easier to clean up after ourselves
+  $$cloudflow_tags = ["gce_pcr_cf:timestamp="+to_n(now())]
+  log_info("All resources created by this cloudflow will be tagged with "+$$cloudflow_tags[0])
+
+  # TODO: Some validation, make sure the ST's are all v13.1'z
+  $$db_sts = {
+    "mysql5_5": "/api/publications/42973",
+    "mysql5_1": "/api/publications/42972",
+    "pgsql": "/api/publications/42974"
+  }
+
+  $$lb_sts = {
+    "lb": "/api/publications/42964"
+  }
+
+  $$app_sts = {
+    "php": "/api/publications/42965"
+  }
+
+  $$sts = $$db_sts
+  $$sts = $$sts + $$lb_sts
+  $$sts = $$sts + $$app_sts
+
+  @@servers = @deployment.servers()
+
+  @@deployment_arrays = @deployment.server_arrays()
+  @@next_instances_in_old_dcs = rs.instances.empty()
+  $next_instance_filters = ["state==inactive", "deployment_href=="+@deployment:href[0]]
+  $current_instance_filters = ["state==operational", "deployment_href=="+@deployment:href[0]]
+  @@current_instances = rs.clouds.get(href: @old_dcs.cloud():href[0]).instances(filter: $current_instance_filters)
+
+  # 2012/11/06: This should be a map, and should be concurrent, but that is not currently possible
+  foreach @old_dc in @old_dcs
+    log_info("Finding instances in datacenter "+@old_dc:name[0])
+    $filter = "datacenter_href=="+@old_dc:href[0]
+    $filters = $next_instance_filters
+    $filters << $filter
+    @@next_instances_in_old_dcs = @@next_instances_in_old_dcs + rs.clouds.get(href: @old_dcs.cloud():href[0]).instances(filter: $filters)
+  end
+
+  log_info("The following instances were found to be in the old datacenter(s) "+to_json(@@next_instances_in_old_dcs:name)+" -- "+inspect(@@next_instances_in_old_dcs))
+
+  concurrent begin on_error: undo
+    begin task_name: clone_and_update, on_cancel: rollback_clones()
+      # Create clones of all impacted instances
+      concurrent foreach @instance in @@next_instances_in_old_dcs task_prefix: clone_and_update
+        $clone_tags = $$cloudflow_tags
+        @parent = @instance.parent()
+        $name = @parent:name[0]
+        @cloned_server = @parent.clone()
+        call clear_tags(@cloned_server)
+        @cloned_server.update(server: { name: $name })
+        @cloned_server.next_instance().update(instance: {"datacenter_href": @new_dc:href[0]})
+
+        # TODO: Put launching in a block, and handle HTTP errors?
+        log_info("Launching cloned instance "+@cloned_server:name[0])
+        @cloned_instance = @cloned_server.launch()
+        @slave_instance = rs.instances.empty()
+        @master_instance = rs.instances.empty()
+
+        if !contains?(values($$sts), @instance.server_template().publication():href)
+          $clone_tags << "gce_pcr_cf:role=unknown"
+        end
+
+        if contains?(values($$app_sts), @instance.server_template().publication():href)
+          # This is an app instance
+          $clone_tags << "gce_pcr_cf:role=app"
+        end
+
+        if contains?(values($$lb_sts), @instance.server_template().publication():href)
+          # This is an LB instance
+          log_info("The cloned and updated server with name "+$name+" was a load balancer and will be treated accordingly")
+          $clone_tags << "gce_pcr_cf:role=lb"
+          call replace_lb(@instance, @cloned_instance)
+        end
+
+        if contains?(values($$db_sts), @instance.server_template().publication():href)
+          # This is a DB instance and requires special handling
+          $clone_tags << "gce_pcr_cf:role=db"
+          # TODO: Possibly fetch the tags when initializing vars & resources at beginning of cloudflow?
+          # Any instance could have been terminated between the assignment of @instances
+          # above, and the use of it here.  Need error handling, or better validation
+          $instance_tags = rs.tags.by_resource(resource_hrefs: @@current_instances:href)
+          foreach $instance in $instance_tags
+            foreach $tag in $instance['tags']
+              if $tag['name'] =~ "/rs_dbrepl:slave_instance_uuid/"
+                @slave_instance = rs.get(href: $instance['links'][0]['href'])
+              end
+              if $tag['name'] =~ "/rs_dbrepl:master_active/"
+                @master_instance = rs.get(href: $instance['links'][0]['href'])
+              end
+            end
+          end
+
+          log_info("Here are all of the DB instances")
+          log_info("Current Master Instance "+inspect(@master_instance))
+          log_info("Current Slave Instance "+inspect(@slave_instance))
+          log_info("Newly Launched Replacement Instance "+inspect(@cloned_instance))
+
+          if contains?(@instance:href, @master_instance:href)
+            log_info("The cloned and updated server with name "+$name+" was a master DB and will be treated accordingly")
+            call replace_master_db(@master_instance, @cloned_instance, @slave_instance)
+          else
+            log_info("The cloned and updated server with name "+$name+" was a slave DB and will be treated accordingly")
+            call replace_slave_db(@slave_instance, @cloned_instance)
+          end
+        end
+
+        rs.tags.multi_add(resource_hrefs: [@cloned_server:href[0], @cloned_instance:href[0]], tags: $clone_tags)
+      end
+    end
+
+    begin task_name: reweight_arrays
+      @dcs = @old_dcs[0].cloud().datacenters()
+      @remaining_dcs = rs.datacenters.empty()
+      # 2012/11/06: This should be a map, and should be concurrent, but that is not currently possible
+      foreach @dc in @dcs
+        if !contains?(@old_dcs:href, @dc:href)
+          @remaining_dcs = @remaining_dcs + @dc
+        end
+      end
+
+      $dc_count = size(@remaining_dcs)
+      $percent = 100 / $dc_count
+      $extra = 100 % $dc_count
+
+      log_info("Each DC will get "+$percent+" % of the instances")
+
+      concurrent foreach @array in @@deployment_arrays task_prefix: update_server_template_dc_weighting
+        # TODO: This assumes the array is already using a specified datacenter weighting
+        # Change the actual datacenter weighting
+        $idx = 1
+        $dc_policy = map $current_dc_policy in @array:datacenter_policy[0] return $policy
+          log_info("Current policy is "+to_json($current_dc_policy))
+          if contains?(@remaining_dcs:href, [$current_dc_policy['datacenter_href']])
+            if $idx == $dc_count
+              $current_dc_policy['weight'] = $percent + $extra
+            else
+              $current_dc_policy['weight'] = $percent
+            end
+          else
+            $current_dc_policy['weight'] = 0
+          end
+          $policy = $current_dc_policy
+          $idx = $idx + 1
+        end
+        log_info("Calculated weighting for array ("+@array:name[0]+") -- "+to_json($dc_policy))
+        @array.update(server_array: {datacenter_policy: $dc_policy})
+
+        # Launch a new instance in the new DC, wait for it to become operational,
+        # then terminate the instance from the old DC
+        @array_current_instances = rs.instances.empty()
+        foreach @old_dc_for_array in @old_dcs
+          @array_current_instances = @array_current_instances + @array.current_instances(filter: ["datacenter_href=="+@old_dc_for_array:href[0]])
+        end
+        if size(@array_current_instances) > 0
+          @launched_array_instances = rs.instances.empty()
+          @array_instances_to_terminate = rs.instances.empty()
+          foreach @array_instance in @array_current_instances task_prefix: array_instance_hotswap
+            @launched_array_instances = @launched_array_instances + @array.launch()
+            @array_instances_to_terminate = @array_instances_to_terminate + @array_instance
+          end
+
+          sleep_until(all?(@launched_array_instances:state, "operational"))
+          concurrent foreach @array_instance_to_terminate in @array_instances_to_terminate
+            @array_instances_to_terminate.terminate()
+          end
+        end
+      end
+    end
+  end
+
+  #############################################################################
+  # My definitions go here                                                    #
+  #                                                                           #
+  #############################################################################
+
+  # Promotes a currently active slave DB to a master, makes a specified server a new slave to the recently promoted master,
+  # then finally terminates and destroys the old master
+  #
+  # Inputs:
+  #   @old_instance   - The master DB instance which will be replaced
+  #   @new_instance   - The newly created instance which is neither a master nor slave, which will be initialized as a new slave to @slave_instance
+  #   @slave_instance - An existing slave instance which will be promoted to master
+  #
+  define replace_master_db(@old_instance, @new_instance, @slave_instance)
+    log_info("Waiting for new DB instance to become operational")
+    sleep_until(all?(@new_instance:state, "operational"))
+    begin on_error: cancel
+      log_info("Could put up a maintenance page by finding all LB servers and running an operational script")
+      # TODO: Switch on the maintenance page
+      log_info("Promoting old slave "+@slave_instance:name[0]+" to Master")
+      call run_recipe_on_instance(@slave_instance, "db::do_promote_to_master")
+
+      log_info("Initializing new server "+@slave_instance:name[0]+" as a slave")
+      call run_recipe_on_instance(@new_instance, "db::do_primary_init_slave")
+      call server_terminate_wait_and_destroy(@old_instance.parent())
+    end
+  end
+
+  define replace_slave_db(@old_instance, @new_instance)
+    log_info("Waiting for new DB instance to become operational")
+    sleep_until(all?(@new_instance:state, "operational"))
+    begin on_error: cancel
+      log_info("Initializing new server "+@slave_instance:name[0]+" as a slave")
+      call run_recipe_on_instance(@new_instance, "db::do_primary_init_slave")
+      call server_terminate_wait_and_destroy(@old_instance.parent())
+    end
+  end
+
+  define replace_lb(@old_instance, @new_instance)
+    log_info("Waiting for new LB instance to become operational")
+    sleep_until(all?(@new_instance:state, "operational"))
+
+    # Must unassign from old LB first, so I should do some validation here
+    # Ephemeral Script ID 390686001
+    # Static Script ID 390685001
+    #{"value":"env:LB1:INSTANCE_ID","name":"GCE_INSTANCE_ID"}
+    call server_teminate_wait_and_destroy(@old_instance.parent())
+  end
+
+  define rollback_clones()
+    log_title("Ohhh NOZ! Teh Rollbax!")
+
+    # TODO: Smarter rollback, use the tags and current status of the DB cluster
+    # for making rollback decisions
+    $rollback_tags = $$cloudflow_tags[0]
+    call get_servers_by_tag($$cloudflow_tags[0]) retrieve @created_servers
+    concurrent foreach @server in @created_servers
+      call server_terminate_wait_and_destroy(@server)
+    end
+  end
+
+  define server_terminate_wait_and_destroy(@server)
+    if type(@server) != "rs.servers"
+      raise "Expecting an rs.servers resource collection, but found " + type(@server)
+    end
+
+    if size(@server) != 1
+      raise "Expecting 1 server, but found " + size(@server)
+    end
+
+    if @server:state[0] =~ "^[^inactive]"
+      @server.terminate()
+      sleep_until(@server:state[0] =~ "^inactive")
+    end
+
+    @server.destroy()
+  end
+
+  # Removes all current tags on all resources in the collection passed in
+  #
+  # Inputs:
+  #   @resource - A resource collection to clear all tags from
+  define clear_tags(@resource)
+    $resources = rs.tags.by_resource(resource_hrefs: @resource:href)
+    concurrent foreach $resource in $resources
+      $resource_hrefs = map $resource_href in $resource['links'] return $href
+        $href = $resource_href['href']
+      end
+      $tags = map $resource_tag in $resource['tags'] return $tag
+        $tag = $resource_tag['name']
+      end
+      # 2012/12/03 Map should return an empty array, if nothing is assigned to $tag
+      # but it instead returns $v:acu_v_tag.  Catching that exception here
+      if(type($tags) != 'array')
+        $tags = []
+      end
+      if(size($tags) > 0)
+        log_info("Clearing tags "+inspect($tags)+" from "+inspect($resource_hrefs))
+        rs.tags.multi_delete(resource_hrefs: $resource_hrefs, tags: $tags)
+      else
+        log_info("Resource "+inspect($resource_hrefs)+" had no tags, skipping clear_tags")
+      end
+    end
+  end
+
+  #############################################################################
+  # External definitions go here                                              #
+  #                                                                           #
+  #############################################################################
+
+  # Synchronously runs a single recipe on a single instance
+  #
+  # Inputs:
+  #   @instance           - A resource collection containing a single instance
+  #   $recipe_name        - The name of the recipe to run (the recipe must be in the repopath of the instance)
+  #   $input_values_hash  - Hash of input values to send to the recipe
+  #
+  # Raises:
+  #   Error if more than 1 instance exists in the @instance resource collection
+  #   Error if the recipe run did not complete successfully
+  #
+  define run_recipe_on_instance(@instance, $recipe_name, $input_values_hash)
+    $start = now()
+    $run_executable_params = {
+      recipe_name: $recipe_name,
+      ignore_lock: true
+    }
+
+    # Make sure we only have 1 instance passed in
+    if size(@instance) != 1
+      raise "Expecting 1 instance, but found " + size(@instance)
+    end
+
+    # transform the inputs for the run_executable API call
+    if type($input_values_hash) == "hash"
+      $inputs_array = []
+      foreach $k in keys($input_values_hash)
+        $inputs_array << { "name": $k, "value": $input_values_hash[$k] }
+      end
+      $run_executable_params["inputs"] = $inputs_array
+    end
+
+    log_info("Running " + $recipe_name + " on " + @instance:name[0])
+
+    # run the script and wait for completion
+    @task = @instance.run_executable($run_executable_params)
+    sleep_until(@task:summary[0] =~ "^completed|^failed") # Wait until it completes or errors out...
+
+    # Make sure it ran successfully
+    if @task:summary[0] =~ "^failed"
+      raise "Error running recipe " + $recipe_name + " on instance " + @instance:name[0]
+    end
+
+    $duration = now() - $start
+    log_info("Successfully ran " + $recipe_name + " on " + @instance:name[0] + " in " + $duration + " seconds")
+
+  end
+
+  # Gets a resource collection of servers having a given tag
+  #
+  # Inputs
+  #   $tag    - String value of the tag to search for
+  #
+  # Returns
+  #   @servers    - Resource collection of servers having the input tag
+  #
+  define get_servers_by_tag( $tag ) return @servers
+    $servers = rs.tags.by_tag( resource_type: "servers", tags: [$tag] )
+
+    @servers = rs.servers.empty()
+
+    if size($servers) > 0
+      foreach $server_link in $servers[0]["links"]
+        @server = rs.get(href:$server_link["href"])
+        @servers = @servers + @server
+      end
+    end
+  end
+end

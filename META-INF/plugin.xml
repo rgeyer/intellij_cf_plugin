@@ -1,0 +1,27 @@
+<idea-plugin version="2">
+  <name>RightScale CloudFlow</name>
+  <description>Language plugin for CloudFlow definitions by RightScale</description>
+  <version>1.0</version>
+  <vendor>RightScale</vendor>
+  <idea-version since-build="8000"/>
+
+  <application-components>
+    <!-- Add your application components here -->
+  </application-components>
+
+  <project-components>
+    <!-- Add your project components here -->
+  </project-components>
+
+  <actions>
+    <!-- Add your actions here -->
+  </actions>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <fileTypeFactory implementation="me.ryangeyer.jetbrains.plugins.lang.cloudflow.CloudflowFileTypeFactory"/>
+    <syntaxHighlighter key="CloudFlow" implementationClass="me.ryangeyer.jetbrains.plugins.lang.cloudflow.CloudflowSyntaxHighlighter" />
+    <lang.syntaxHighlighterFactory key="CloudFlow" implementationClass="me.ryangeyer.jetbrains.plugins.lang.cloudflow.CloudflowSyntaxHighlighterFactory"/>
+  </extensions>
+
+  <depends>com.intellij.modules.lang</depends>
+</idea-plugin>
