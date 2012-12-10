@@ -4,6 +4,8 @@ This is an IntelliJ IDEA 10.5 Ultimate plugin to support the RightScale CloudFlo
 
 It'll probably work on other IntelliJ family IDE's as well.
 
+![syntax highlighting screencap](https://github.com/rgeyer/intellij_cf_plugin/raw/master/images/syntax_highlight1.png)
+
 # Features
 * Identifies CloudFlow definitions by the file extension *.def
 * Displays *.def files with a RightScale icon

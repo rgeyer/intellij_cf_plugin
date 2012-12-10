@@ -1,4 +1,5 @@
 *.jar
+*.zip
 out/*
 jflex.log
 *~
